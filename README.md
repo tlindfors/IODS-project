@@ -1,0 +1,4 @@
+
+This is a course on open data science. So far, this course's exercises have been *quite* odd.
+
+<https://tlindfors.github.io/IODS-project/>

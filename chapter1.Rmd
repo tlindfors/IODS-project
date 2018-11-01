@@ -1,6 +1,9 @@
 
 # About the project
 
-*Write a short description about the course and add a link to your github repository here. This is an R markdown (.Rmd) file so you can use R markdown syntax. See the 'Useful links' page in the mooc area (chapter 1) for instructions.*
+This course is about open data science, a mix of three overlapping integrities:
+1) open data
+2) open science and
+3) data science
 
 https://github.com/tlindfors/IODS-project/
