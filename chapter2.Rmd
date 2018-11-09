@@ -5,3 +5,58 @@
 - Describe your work and results clearly. 
 - Assume the reader has an introductory course level understanding of writing and reading R code as well as statistical methods
 - Assume the reader has no previous knowledge of your data or the more advanced methods you are using  
+
+### Q1. Reading and exploring the data the data
+```{r}
+lrn2014a <- read.csv("lrn2014a.csv", row.names = 1)
+str(lrn2014a)
+head(lrn2014a)
+```
+The dataset I am analysing is constructed based on a survey conducted in an introductory statistics course in University of Helsinki. It consists of the exam points and three different variables measuring respondents' qualities as a student, along with data for some background characteristics. Overall, there are 166 observations (i.e., students) and 7 variables in the dataset.
+
+### Q2. Graphical overview and summary statistics
+```{r}
+hist(lrn2014a$Age)
+hist(lrn2014a$Attitude)
+hist(lrn2014a$deep)
+hist(lrn2014a$surf)
+hist(lrn2014a$stra)
+hist(lrn2014a$Points)
+
+summary(lrn2014a$gender)
+summary(lrn2014a$Age)
+summary(lrn2014a$Points)
+
+sum(lrn2014a$gender == "F")/(sum(lrn2014a$gender == "F") + 
+                               sum(lrn2014a$gender == "M"))
+
+pairs(lrn2014a)
+
+cor(lrn2014a$deep, lrn2014a$surf)
+cor(lrn2014a$Attitude, lrn2014a$Points)
+```
+Typical student in the dataset is a young female. Indeed, the median respondent's age is 22 years old, while circa 66% of the students identify themselves as females. As for the exam points and the variables measuring students' learning qualities, they appear approximately normally distributed.
+
+Considering connections between variables, it is hard distinguish clear cut linear relationships. Based on visual examination and simple correlation coefficients, too patterns could be pointed out, however. At first look, student's attitude and exam points appear to be positively correlated, while their deep learning qualities and surface learning features are negatively correlated. This was expected.
+
+### Q3 and Q4. Linear model
+```{r}
+m1 <- lm(Points ~ Attitude + Age + deep, data = lrn2014a)
+summary(m1)
+
+m2 <- lm(Points ~ Attitude, data = lrn2014a)
+summary(m2)
+summary(lrn2014a$Attitude)
+```
+I chose students' attitude, age and deep learning skills as predictors of exam points. Turns out, that only attitude can explain exam points with a relatively good precision: it is statistically significant at the 0.001% level in the model including all three variables. Attitude and age lack statistical significance at the 10% level, and thus I exclude them from the second model. In the second, bivariate model attitude is again significant at the 0.001% level, and its coefficient remains virtually unchanged. The coefficient's interpretation is, that conditional on age and deep learning skills, a one-point increase in attitude (ranging from 14 to 50) predicts an increase of ~0.36 points in exam.
+
+Looking at the value on multiple R-squared in the first linear model (m1), I can conclude that the three explanatory variables can explain around 20% of the variation in exam points.
+
+### Q5. Diagnostic plots
+```{r}
+par(mfrow = c(2, 2))
+plot(m2, which = c(1, 2, 5))
+```
+The linear model I estimated assumes, that its error terms follow a normal distribution, i.e. they have a mean zero, a constant variance and experience no autocorrelation. Based on the distribution of error term estimates, the residuals, this assumption appears to be roughly accurate. The residuals are centered around zero, and they do not share a tendency to variate with respect to the fitted values. In addition, none of the observations seem to possess exceptionally high leverage in terms of regression coefficients: none scores particularly high value on Cook's distance relative to others.
+
+
