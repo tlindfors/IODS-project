@@ -57,6 +57,7 @@ Looking at the value on multiple R-squared in the first linear model (m1), I can
 par(mfrow = c(2, 2))
 plot(m2, which = c(1, 2, 5))
 ```
+
 The linear model I estimated assumes, that its error terms follow a normal distribution, i.e. they have a mean zero, a constant variance and experience no autocorrelation. Based on the distribution of error term estimates, the residuals, this assumption appears to be roughly accurate. The residuals are centered around zero, and they do not share a tendency to variate with respect to the fitted values. In addition, none of the observations seem to possess exceptionally high leverage in terms of regression coefficients: none scores particularly high value on Cook's distance relative to others.
 
 
