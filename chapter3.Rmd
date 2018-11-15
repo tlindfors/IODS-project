@@ -1,0 +1,107 @@
+# R Studio Exercise 3
+
+### Q2. Reading and exploring the data 
+
+```{r}
+setwd("C:/Users/Teppo/Documents/GitHub/IODS-project/data")
+
+alc <- read.csv("alc.csv", row.names = 1)
+colnames(alc)
+str(alc)
+```
+The dataset I am working with consist of 35 different features regarding demographics, studies and social life of 382 Portuguese students. Speficially, it includes data on grades and alcohol consumption.
+
+### Q3. Picking explanatory variables
+
+My analysis pursues to study whether a relatively high level of alcohol consumption among students could be predicted based on social treats. To do this, I have picked four variables for closer examination. The variables are the following:
+
+**Medu** - mother's education, ranging from "none" to "higher education"
+
+**studytime** - weekly study time, ranging from less than 2 hours to  over 10 hours
+
+**activities** - extra-curricular activities, with binary response.
+
+**Pstatus** - parent's cohabitation status, with binary response
+
+In short, I hypothesise that mother's education, study time and extra-curricular activities are negatively associated with high levels of alcohol consumption. For parent's cohabitation status, I predict that with no cohabitation the risk of high alcohol consumption is greater.
+
+### Q4. Numerical and graphical exploration
+```{r, warning = FALSE, message = FALSE}
+# Preparing variables for analysis
+alc$activities <- as.numeric(alc$activities)
+alc$Pstatus <- as.numeric(alc$Pstatus)
+
+# Installing relevant packages
+library(dplyr)
+library(ggplot2)
+```
+Correlation coefficients, distributional plots and cross tabulations:
+```{r}
+# Simple correlation coefficients
+cor(alc$high_use, alc$Medu)
+cor(alc$high_use, alc$studytime)
+cor(alc$high_use, alc$activities)
+cor(alc$high_use, alc$Pstatus)
+
+# Distributional plots
+g1 <- ggplot(alc, aes(x = Medu))
+g2 <- ggplot(alc, aes(x = studytime))
+g3 <- ggplot(alc, aes(x = activities))
+g4 <- ggplot(alc, aes(x = Pstatus))
+
+g1 + geom_bar()
+g2 + geom_bar()
+g3 + geom_bar()
+g4 + geom_bar()
+
+# Cross tabulations
+table(alc$high_use, alc$Medu)
+table(alc$high_use, alc$studytime)
+table(alc$high_use, alc$activities)
+table(alc$high_use, alc$Pstatus)
+```
+
+
+Based on quick numerical and graphical exploration, I could make the following observations. Considering my explanatory variables, the distribution of mother's educations appears to be rightly skewed, while study time is skewed to the left. In words, this implies that in the sample at hand, the students' mother's tend to have at least some education, and typically higher education. Moreover, a weekly study time of 2 to 5 hours is the most common, while higher numbers are seemingly less prevalent. In addition, participation to extracurricular activities splits the sample virtually in half. Finally, the great majority of students' parents live in cohabitation.
+
+Moving on to connections between variables, the accuracy of my hypotheses is at best mixed. The most precise prediction is the one on study time, which is negatively correlated with high levels of alcohol consumption. All the other correlations are very close to zero, and the sign on mother's education is actually *positive*.
+
+### Q5. Logistic regression
+
+```{r}
+m1 <- glm(high_use ~ Medu + studytime + activities + Pstatus, data = alc, family = binomial)
+summary(m1)
+```
+Next, I ran a logistic regression using the aforementioned four variables as explanatory variables. Not surprisingly, the model by and large confirms what the correlation coefficients suggested: apart from study time, the selected variables cannot help us identify students with high levels of alcohol consumption. On the other hand, study time provides quite precise prediction, being statistically significant at the 0.001% level.
+```{r, warning = FALSE, message = FALSE}
+exp(coef(m1))
+exp(confint(m1))
+```
+To ease interpretation, I exponentiated the coefficients from the logistic regression, and computed their respective confidence intervals. Now, the numbers represent odds ratios. As expected, for the three variables excluding study time the estimated confidence interval contains one. This implies, that we cannot tell whether an increase in each variable increases or decreases the odds of high alcohol consumption. Considering study time, however, the confidence interval is roughly 0.40-0.74, our best guess (i.e., the odds ratio) being 0.55. The interpretation is, that increasing study time for example from 2 to 5 hours to 5 to 10 hours squeezes the odds of high alcohol consumption by about 50%. An exact interpretation is awkward, since the study time categories are not of equal size.
+
+### Q6. Evaluating predictive power
+```{r, warning = FALSE, message = FALSE}
+m2 <- glm(high_use ~ studytime, data = alc, family = binomial)
+summary(m2)
+probabilities <- predict(m2, type = "response")
+alc <- mutate(alc, probability = probabilities)
+alc <- mutate(alc, prediction = probability > 0.5)
+table(high_use = alc$high_use, prediction = alc$prediction) %>%
+  prop.table() %>%
+  addmargins()
+
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+loss_func(class = alc$high_use, prob = 0)
+
+alc %>%
+  ggplot(aes(x = probability, y = high_use, col = prediction)) +
+  geom_point()
+```
+
+Finally, I evaluate the predictive power of my logistic regression. Firstly, I do this by cross-tabulating the students who actually consume high level of alcohol, and the ones my model predicts to do so. Turns out, that after excluding the statistically insignificant variables, the bivariate model with only study times as an explanatory variable predicts that none of the students is a big drinker. Thus, the confusion matrix comes out as 2x1 matrix. Regardless, it can be concluded that the proportion of inaccurately classified individuals is roughly 30%. This result is further replicated by exploiting a loss function and drawing a rather trivial plot.
+
+In terms of predictive power, the bivariate model is worthless compared to simply guessing that none of the students is a grand alcohol consumer: both approaches produce an identical prediction error.
+
