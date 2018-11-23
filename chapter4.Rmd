@@ -1,0 +1,142 @@
+# R Studio Exercise 4
+
+### Q2. Reading and exploring the data
+
+```{r, warning = FALSE, message = FALSE}
+library(MASS)
+library(dplyr)
+library(ggplot2)
+library(corrplot)
+library(reshape2)
+library(magrittr)
+data("Boston")
+str(Boston)
+dim(Boston)
+```
+
+The dataset for week 4 is a default dataset included in the R package MASS. The dataset describes housing values and various social parameters in different suburbs of Boston. It consists of 506 observations of 14 variables.
+
+### Q3. Summary statistics and graphical overview
+**Summary statistics**
+```{r, warning = FALSE, message = FALSE}
+summary(Boston)
+```
+
+**Graphical overview**
+
+```{r, warning = FALSE, message = FALSE}
+widedata1 <- Boston %>%
+  dplyr::select(crim, zn, age) %>%
+  melt()
+ggplot(widedata1, aes(x = value, fill = variable)) + geom_density(alpha = 0.25)
+
+widedata2 <- Boston %>%
+  dplyr::select(lstat, medv, ptratio, indus, rad) %>%
+  melt()
+ggplot(widedata2, aes(x = value, fill = variable)) + geom_density(alpha = 0.25)
+
+widedata3 <- Boston %>%
+  dplyr::select(chas, nox) %>%
+  melt()
+  ggplot(widedata3, aes(x = value, fill = variable)) + geom_density(alpha = 0.25)
+
+widedata4 <- Boston %>%
+  dplyr::select(dis, rm) %>%
+  melt()
+  ggplot(widedata4, aes(x = value, fill = variable)) + geom_density(alpha = 0.25)
+  
+widedata5 <- Boston %>%
+  dplyr::select(black) %>%
+  melt()
+  ggplot(widedata5, aes(x = value, fill = variable)) + geom_density(alpha = 0.25)
+  
+widedata6 <- Boston %>%
+  dplyr::select(tax) %>%
+  melt()
+  ggplot(widedata6, aes(x = value, fill = variable)) + geom_density(alpha = 0.25)
+  
+cor_matrix <- cor(Boston)
+corrplot(cor_matrix, method="circle", type = "upper", tl.cex = 0.6)
+```
+
+Based on the similarity of ranges between variables, I looked at the density of several variables simultaneously. In the dataset at hand, it seems that hardly any variable is normally distributed. While some are heavily skewed, some are bimodal, which means that they possess two distinct modes. For example, the per capita crime rate (*crim*) is left-skewed, while the variable proxying the proportion of blacks by town (*black*) is right-skewed. In addition, the variables measuring property-tax rate (*tax*) and the proportion of non-retail business acres (*indus*) appear clearly bimodal.
+
+Considering the relationships between variables, few variables stand out when focusing on the target variable, i.e. per capita crime rate. Turns out, that quite surprisingly, property tax rate and accessibility to radial highways show the strongest positive correlation with the crime rate in a bivariate setting. Housing value, proportion of blacks and distance to employment centres experience the strongest negative correlation.
+
+### Q4. Getting data ready for analysis
+**Standardizing, wrangling and splitting the data**
+```{r, warning = FALSE, message = FALSE}
+# Scaling the data, and creating a new categorical variable crime
+boston_scaled <- scale(Boston)
+boston_scaled <- as.data.frame(boston_scaled)
+summary(boston_scaled)
+bins <- quantile(boston_scaled$crim)
+crime <- cut(boston_scaled$crim, breaks = bins, include.lowest = T, label = c("low", "med-low", "med-high", "high"))
+boston_scaled <- dplyr::select(boston_scaled, -crim)
+boston_scaled <- data.frame(boston_scaled, crime)
+
+# Splitting the data into a train and test sets
+set.seed(123)
+n <- nrow(boston_scaled)
+ind <- sample(n, size = n * 0.8)
+train <- boston_scaled[ind,]
+test <- boston_scaled[-ind,]
+```
+
+Standardization of the data centers each variable to zero. The variables are also scaled with their respective standard deviation. In practice, this transformation moulds the variables in a way which makes their distribution closer to the standard normal distribution. After standardization, I added a new variable to the dataset, *crime*, which is a categorical version of the continuous variable *crim*. *Crime* was split into four equal-sized levels by first identifying its quantiles. Moreover, the old *crim* variable was deleted. As a last preparation before the analysis, I divided the data into train and test sets, where a random sample including 80% of the data was assigned to the train set, and the rest to the other set.
+
+### Q5. Linear discriminant analysis
+```{r, warning = FALSE, message = FALSE}
+ldam <- lda(crime ~ ., data = train)
+ldam
+classes <- as.numeric(train$crime)
+
+lda.arrows <- function(x, myscale = 1, arrow_heads = 0.1, color = "red", tex = 0.75, choices = c(1,2)){
+  heads <- coef(x)
+  arrows(x0 = 0, y0 = 0, 
+         x1 = myscale * heads[,choices[1]], 
+         y1 = myscale * heads[,choices[2]], col=color, length = arrow_heads)
+  text(myscale * heads[,choices], labels = row.names(heads), 
+       cex = tex, col=color, pos=3)
+}
+
+plot(ldam, dimen = 2, col = classes, pch = classes)
+lda.arrows(ldam, myscale = 2)
+```
+
+Next, I fitted a linear discriminant analysis with the train set, while using the categorical crime rate as a target variable. To briefly comment the results, one distinct pattern could be pointed out. It appears, that if the train set is classified into two categories, the accessibility to radial highways is the variable which discriminates per capita crime rates the best.
+
+### Q6. Testing the model's predictive power
+```{r, warning = FALSE, message = FALSE}
+# 
+correct_classes <- test$crime
+test <- dplyr::select(test, -crime)
+
+ldapred <- predict(ldam, newdata = test)
+table(correct = correct_classes, predicted = ldapred$class)
+```
+To complete my classification exercise, I exploited the test set constructed earlier and tested the validity of the linear discriminant analysis. Inputting the test set as new data, I used the model chosen via LDA to assign the fresh observations to different crime rate categories. Finally, I compared the predicted categories to categories based on actual per capita crime rates by cross tabulation. The conclusion is, that my model performed quite well. It succeeded to assign great majority of towns to their true crime rate categories relying on the other 13 variables. In the table, these succesful predictions appear on the diagonal, while off-diagonal elements represent mispredictions. Apart from the "med-low" category, the accuracy is way above 50%.
+
+### Q7. K-means
+```{r, warning = FALSE, message = FALSE}
+# Reloading the data and computing Euclidian distances
+data("Boston")
+boston_scaled_km <- scale(Boston)
+dist_eu <- dist(boston_scaled_km)
+str(dist_eu)
+
+# K-means clustering with two clusters
+set.seed(123)
+km <- kmeans(boston_scaled_km, centers = 2)
+pairs(Boston, col = km$cluster)
+
+# Finding the optimal number of clusters, and visualizing the results
+kmax <- 10
+twcss <- sapply(1:kmax, function(k){kmeans(boston_scaled_km, k)$tot.withinss})
+qplot(x = 1:kmax, y = twcss, geom = 'line')
+
+```
+
+Done with the classification, I experimented a bit with clustering. Starting from a scratch, I reloaded the Boston dataset. Next, I looked a bit under the hood of k-means clustering algorithm, and created a distance matrix, which computes observations' pairwise Euclidian distances. Moving on to analysis, I ran the k-means algorithm on the data with two centroids, and visualized the clusters with respect to each variable. To minimize arbitrariness when selecting the number of centroids, I computed total within cluster sum of squares to determine the optimal number of centroids, i.e. clusters. Plotting the sums with varying number of clusters from one to ten, I concluded that two clusters is indeed the optimal choice: the optimum is represented as the most distinct drop in the sum.
+
+
