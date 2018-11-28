@@ -1,0 +1,91 @@
+# R Studio Exercise 5
+
+### Q1. Reading and exploring the data
+
+**Graphical overview**
+```{r, warning = F, message = F}
+library(GGally)
+
+human <- read.csv("C:/Users/Teppo/Documents/GitHub/IODS-project/data/human2.csv", row.names = 1)
+ggpairs(human)
+```
+
+**Summary statistics**
+```{r, warning = F, message = F}
+dim(human)
+summary(human)
+```
+
+Based on the first glance on this week's dataset of development indicators across 155 countries, the following patterns could be brought forward. Considering the variables' distributions, it appears, that at least the ratio of participation rates between women and men and life expectancy are somewhat right-skewed, while GNI, maternal mortality ratio and adolescent birth rate appear left-skewed. The expected years of education, on the other hand, seem roughly normally distributed. According to summary statistics, secondary education, labour force participation or parliamentary representation is more common among men than women, on average. In addition, expected years of education averages around 13 years around the globe, while the mean of life expectancy is less than 72 years. Note, that these are numbers are not population-weighted.
+
+Moving on to relations between variables, we are able to distinguish couple of strong correlations. Firstly, expected years of education and life expectancy share a distinct positive correlation, as well as maternal mortality ratio and adolescent birth rate. Furthermore, maternal mortality rate and adolescent birth rate are seemingly negatively correlated with expected years of education and life expectancy.
+
+### Q2. First trial with principal component analysis
+
+```{r, warning = F, message = F}
+pca_human <- prcomp(human)
+summary(pca_human)
+biplot(pca_human, choices = 1:2, cex = c(0.5, 0.5), xlab = "PC1 ~ GNI", ylab = "PC2") 
+```
+
+According to my first trial on principal component analysis (PCA), the first principal component, PC1, appears to capture slightly under 100% of the variability between observations. This is due to the unscaled data, which leads to a situation where the analysis is driven solely by the variable measuring gross national income (GNI). Since GNI's range is greater than any other variable's by far, it dilutes the computation. 
+
+### Q3 & Q4. PCA with scaled data
+
+```{r, warning = F, message = F}
+str(human)
+human_scaled <- scale(human)
+pca_human_scaled <- prcomp(human_scaled)
+summary(pca_human_scaled)
+
+biplot(pca_human_scaled, choices = 1:2, cex = c(0.5, 0.6), xlab = "PC1 ~ Social and economic development", ylab = "PC2 ~ Women's status")
+cor(human_scaled)
+```
+Once the data is standardized, the results change dramatically, since the variables become more commensurate. After the update, the first principal component captures a bit over 50% of the variability between observations, while the respective number for the second principle component is around 16%. The biplot demonstrates, that the first principle component is mainly composed of variables related to economic and social development, like gross national income, life expectancy, expected years of education, adolescent birth rate and maternal mortality ratio. One variable which does not quite fit this categorization is the ratio of women and men with secondary education. In contrast, the second principle component is driven by the parliamentary representation and the relative labor force participation of women, two features which could be wagely bundled as women's status. In conclusion, it could be stated that based on the data at hand, the variability between the countries around the globe could be approximately split into dimensions of economic development and gender inequality.
+
+### Q5. Multiple correspondence analysis
+
+**Introducing the 'tea' dataset**
+```{r, warning = F, message = F}
+library(FactoMineR)
+data("tea")
+str(tea)
+dim(tea)
+
+library(dplyr)
+library(tidyr)
+
+gather(tea[,1:9]) %>%
+  ggplot(aes(value)) +
+  geom_bar() +
+  facet_wrap("key", scales = "free")
+
+gather(tea[,10:18]) %>%
+  ggplot(aes(value)) +
+  geom_bar() +
+  facet_wrap("key", scales = "free")
+
+gather(tea[,19:27]) %>%
+  ggplot(aes(value)) +
+  geom_bar() +
+  facet_wrap("key", scales = "free")
+
+gather(tea[,28:36]) %>%
+  ggplot(aes(value)) +
+  geom_bar() +
+  facet_wrap("key", scales = "free")
+
+```
+
+As a final exercise, I performed a multiple correspondence analysis with a dataset regarding the habits and perceptions of English tea-drinkers, provided within the R package *FactoMineR*. As a first glance, we can observe that the dataset consists of 300 observations and 36 variables. A quick graphical exploration offers delightful insights to the tea-drinking convetions in England, like that based on this sample, tea is mostly drank at home, a preferred tea label is Earl Grey, and most respondents find tea-drinking neither exciting nor feminine, but sophisticated instead.
+
+**MCA**
+```{r, warning = F, message = F}
+keep_columns <- c("Tea", "How", "how", "sugar", "where", "lunch")
+tea_time <- dplyr::select(tea, one_of(keep_columns))
+mca <- MCA(tea_time, graph = F)
+summary(mca)
+plot(mca, invisible=c("ind"), habillage = "quali")
+```
+I ran MCA with six different variables, which here refer to questions around tea-drinking habits, including preferable tea label, whether or not tea is drank during lunch etc. Turns out, that capturing the variability between the respondents in two dimensions based on the selected six questions is rather hard: the first two dimensions retain circa 30% of the overall variance, which is not that much, implying that the dimensions are not too distinguishable. Indeed, after visualizing the analysis with a biplot, it seems that we are able to classify a great mass of 'regular' tea-drinkers, preferring Earl Grey and using mostly tea bags, from the hedonists who get their unpackaged tea from a specialized shop. However, even this categorization requires a bit of imagination. 
+
